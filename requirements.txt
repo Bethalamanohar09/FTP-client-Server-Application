@@ -1,0 +1,2 @@
+# Python standard library only (socket, http.server, threading, json, mimetypes)
+# Zero external pip dependencies required.

@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FTP Client-Server Application | Computer Networks Lab</title>
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-badge">
+        <i class="fa-solid fa-network-wired"></i>
+      </div>
+      <div>
+        <h1 class="app-title">FTP Client–Server Application</h1>
+        <p class="app-subtitle">Computer Networks Lab Project &bull; RFC 959 Dual-Port Architecture</p>
+      </div>
+    </div>
+
+    <!-- Live Status & Stats -->
+    <div class="header-center">
+      <div class="status-pill" id="connStatusPill">
+        <span class="status-dot disconnected"></span>
+        <span class="status-text" id="connStatusText">DISCONNECTED</span>
+      </div>
+      <div class="metrics-ticker">
+        <div class="metric-item">
+          <span class="metric-label">USER</span>
+          <span class="metric-val" id="currentUserVal">None</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">MODE</span>
+          <span class="metric-val text-cyan" id="currentModeVal">PASV</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">UPLOADED</span>
+          <span class="metric-val text-green" id="bytesUpVal">0 B</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">DOWNLOADED</span>
+          <span class="metric-val text-blue" id="bytesDownVal">0 B</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Action Controls -->
+    <div class="header-right">
+      <button class="btn btn-secondary btn-sm" id="btnStudyGuide" title="Open RFC 959 Notes & Viva Q&A">
+        <i class="fa-solid fa-graduation-cap"></i> Lab Viva Guide
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btnResetDemo" title="Restore sample files">
+        <i class="fa-solid fa-rotate-right"></i> Reset Demo
+      </button>
+      <button class="btn btn-primary btn-sm" id="btnConnectModal">
+        <i class="fa-solid fa-plug"></i> Connect FTP
+      </button>
+      <button class="btn btn-danger btn-sm hidden" id="btnDisconnect">
+        <i class="fa-solid fa-power-off"></i> Disconnect
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace Layout -->
+  <main class="main-container">
+
+    <!-- Section 1: Visual Network Architecture (RFC 959 Dual Channel) -->
+    <section class="network-vis-panel">
+      <div class="vis-card">
+        <div class="node client-node">
+          <div class="node-icon"><i class="fa-solid fa-laptop-code"></i></div>
+          <div class="node-info">
+            <span class="node-role">FTP Client</span>
+            <span class="node-ip">127.0.0.1 (Ephemeral)</span>
+          </div>
+        </div>
+
+        <div class="channel-wires">
+          <!-- Control Connection Line (Port 21) -->
+          <div class="wire-container">
+            <div class="wire-badge control-badge">
+              <i class="fa-solid fa-terminal"></i> Control Channel (Port 21) &bull; Commands &amp; Status
+            </div>
+            <div class="wire wire-control" id="controlWire">
+              <div class="packet-particle packet-control" id="controlPacket"></div>
+            </div>
+          </div>
+
+          <!-- Data Connection Line (Port 20 / PASV) -->
+          <div class="wire-container">
+            <div class="wire-badge data-badge">
+              <i class="fa-solid fa-arrow-right-arrow-left"></i> Data Channel (Port 20 / Ephemeral) &bull; File Streams
+            </div>
+            <div class="wire wire-data" id="dataWire">
+              <div class="packet-particle packet-data" id="dataPacket"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="node server-node">
+          <div class="node-icon"><i class="fa-solid fa-server"></i></div>
+          <div class="node-info">
+            <span class="node-role">FTP Server (RFC 959)</span>
+            <span class="node-ip">127.0.0.1:21</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 2: Dual-Pane File Explorer -->
+    <section class="explorer-grid">
+      <!-- Left Panel: Client Local Storage -->
+      <div class="pane client-pane">
+        <div class="pane-header">
+          <div class="pane-title">
+            <i class="fa-solid fa-folder-tree text-cyan"></i>
+            <span>Local Client Storage</span>
+            <span class="badge badge-subtle">Client Host</span>
+          </div>
+          <div class="pane-actions">
+            <button class="icon-btn" id="btnRefreshClient" title="Refresh files"><i class="fa-solid fa-arrows-rotate"></i></button>
+            <button class="icon-btn" id="btnNewFolderClient" title="New Folder"><i class="fa-solid fa-folder-plus"></i></button>
+            <label class="icon-btn" title="Add File from Your PC" style="cursor: pointer;">
+              <i class="fa-solid fa-file-circle-plus"></i>
+              <input type="file" id="clientFileInput" style="display: none;">
+            </label>
+          </div>
+        </div>
+
+        <!-- Breadcrumb & Path -->
+        <div class="path-bar">
+          <button class="btn-path-nav" id="btnClientUp" title="Go up one folder"><i class="fa-solid fa-level-up-alt"></i></button>
+          <span class="path-label">Path:</span>
+          <span class="path-val" id="clientPathVal">/</span>
+        </div>
+
+        <!-- Files List Table -->
+        <div class="file-list-container" id="clientDropZone">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th style="width: 44%;">Name</th>
+                <th style="width: 22%;">Size</th>
+                <th style="width: 34%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="clientFileListBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+          <div class="drop-hint">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Drop files here to save in Client folder
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Action Bridge -->
+      <div class="bridge-panel">
+        <div class="bridge-controls">
+          <button class="transfer-btn btn-stor" id="btnTransferStor" title="Upload selected file from Client to Server (STOR)">
+            <span>STOR</span>
+            <i class="fa-solid fa-arrow-right"></i>
+            <small>Upload to Server</small>
+          </button>
+          <button class="transfer-btn btn-retr" id="btnTransferRetr" title="Download selected file from Server to Client (RETR)">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>RETR</span>
+            <small>Download to Client</small>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Panel: Remote FTP Server Storage -->
+      <div class="pane server-pane">
+        <div class="pane-header">
+          <div class="pane-title">
+            <i class="fa-solid fa-database text-purple"></i>
+            <span>Remote Server Storage</span>
+            <span class="badge badge-purple" id="serverAuthBadge">Protected</span>
+          </div>
+          <div class="pane-actions">
+            <button class="icon-btn" id="btnRefreshServer" title="Refresh files (LIST)"><i class="fa-solid fa-arrows-rotate"></i></button>
+            <button class="icon-btn" id="btnNewFolderServer" title="New Folder (MKD)"><i class="fa-solid fa-folder-plus"></i></button>
+          </div>
+        </div>
+
+        <!-- Breadcrumb & Path -->
+        <div class="path-bar">
+          <button class="btn-path-nav" id="btnServerUp" title="Go up one folder (CDUP)"><i class="fa-solid fa-level-up-alt"></i></button>
+          <span class="path-label">CWD:</span>
+          <span class="path-val" id="serverPathVal">/</span>
+        </div>
+
+        <!-- Files List Table -->
+        <div class="file-list-container">
+          <table class="file-table">
+            <thead>
+              <tr>
+                <th style="width: 44%;">Name</th>
+                <th style="width: 22%;">Size</th>
+                <th style="width: 34%;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="serverFileListBody">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 3: Protocol Terminal & Real-Time RFC 959 Packet Sniffer -->
+    <section class="console-section">
+      <div class="tabs-header">
+        <button class="tab-btn active" data-tab="terminalTab">
+          <i class="fa-solid fa-terminal"></i> Interactive FTP Console (RFC 959)
+        </button>
+        <button class="tab-btn" data-tab="snifferTab">
+          <i class="fa-solid fa-microchip"></i> TCP Packet Sniffer &amp; Channel Log
+        </button>
+        <div class="console-actions">
+          <button class="btn btn-ghost btn-xs" id="btnClearLog">
+            <i class="fa-solid fa-trash-can"></i> Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 1: Terminal Tab -->
+      <div class="tab-content active" id="terminalTab">
+        <!-- Quick Command Shortcuts -->
+        <div class="quick-commands">
+          <span class="quick-label">Quick Commands:</span>
+          <button class="cmd-chip" data-cmd="PWD">PWD</button>
+          <button class="cmd-chip" data-cmd="LIST">LIST</button>
+          <button class="cmd-chip" data-cmd="PASV">PASV</button>
+          <button class="cmd-chip" data-cmd="PORT">PORT</button>
+          <button class="cmd-chip" data-cmd="SYST">SYST</button>
+          <button class="cmd-chip" data-cmd="TYPE I">TYPE I (Binary)</button>
+          <button class="cmd-chip" data-cmd="HELP">HELP</button>
+          <button class="cmd-chip" data-cmd="NOOP">NOOP</button>
+          <button class="cmd-chip" data-cmd="QUIT">QUIT</button>
+        </div>
+
+        <div class="terminal-screen" id="terminalScreen">
+          <div class="terminal-line system-line">
+            <span class="line-time">[00:00:00]</span>
+            <span class="line-msg">Welcome to CN Lab FTP Terminal. Connect using GUI or type raw FTP commands below.</span>
+          </div>
+        </div>
+
+        <!-- Terminal Input Prompt -->
+        <div class="terminal-input-bar">
+          <span class="terminal-prompt">ftp&gt;</span>
+          <input type="text" id="terminalInput" placeholder="Type FTP command (e.g., USER anonymous, LIST, PWD, PASV, HELP)..." autocomplete="off" spellcheck="false">
+          <button class="btn btn-primary btn-sm" id="btnSendCmd">
+            <i class="fa-solid fa-paper-plane"></i> Send
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab 2: Sniffer Tab -->
+      <div class="tab-content" id="snifferTab">
+        <div class="sniffer-table-container">
+          <table class="sniffer-table">
+            <thead>
+              <tr>
+                <th style="width: 10%;">Time</th>
+                <th style="width: 12%;">Channel</th>
+                <th style="width: 10%;">Port</th>
+                <th style="width: 10%;">Direction</th>
+                <th style="width: 40%;">Payload / Command</th>
+                <th style="width: 18%;">Explanation</th>
+              </tr>
+            </thead>
+            <tbody id="snifferTableBody">
+              <!-- Dynamically populated packet trace -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal 1: FTP Connection Modal -->
+  <div class="modal-overlay hidden" id="connectModal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-server text-cyan"></i> Connect to FTP Server</h3>
+        <button class="modal-close" id="btnCloseConnectModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">Choose a pre-configured CN Lab account or enter custom credentials:</p>
+        
+        <!-- Preset Cards -->
+        <div class="preset-grid">
+          <div class="preset-card active" data-user="anonymous" data-pwd="">
+            <div class="preset-title"><i class="fa-solid fa-user-secret"></i> Anonymous</div>
+            <div class="preset-desc">Public guest access. No password required.</div>
+          </div>
+          <div class="preset-card" data-user="admin" data-pwd="admin123">
+            <div class="preset-title"><i class="fa-solid fa-user-shield"></i> Admin</div>
+            <div class="preset-desc">Full administrative access (pwd: admin123).</div>
+          </div>
+          <div class="preset-card" data-user="student" data-pwd="netlab">
+            <div class="preset-title"><i class="fa-solid fa-user-graduate"></i> Student</div>
+            <div class="preset-desc">Standard student credentials (pwd: netlab).</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Username (USER)</label>
+          <input type="text" id="modalUsername" class="form-input" value="anonymous">
+        </div>
+        <div class="form-group">
+          <label>Password (PASS)</label>
+          <input type="password" id="modalPassword" class="form-input" placeholder="(Leave blank for anonymous)">
+        </div>
+        <div class="form-group">
+          <label>Data Transfer Mode</label>
+          <select id="modalMode" class="form-input">
+            <option value="PASV">Passive Mode (PASV) - Recommended</option>
+            <option value="PORT">Active Mode (PORT)</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnCancelConnect">Cancel</button>
+        <button class="btn btn-primary" id="btnSubmitConnect">
+          <i class="fa-solid fa-right-to-bracket"></i> Login &amp; Connect
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: File Preview Modal -->
+  <div class="modal-overlay hidden" id="previewModal">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-file-lines text-cyan"></i> <span id="previewModalTitle">File Preview</span></h3>
+        <button class="modal-close" id="btnClosePreviewModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="preview-meta" id="previewModalMeta"></div>
+        <div class="preview-viewport" id="previewModalBody">
+          <!-- Text or Image preview rendered here -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnClosePreviewBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Lab Study Guide & Viva Voce Modal -->
+  <div class="modal-overlay hidden" id="studyGuideModal">
+    <div class="modal-dialog modal-xl">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-book-open-reader text-cyan"></i> CN Lab Study Guide: File Transfer Protocol (RFC 959)</h3>
+        <button class="modal-close" id="btnCloseStudyModal">&times;</button>
+      </div>
+      <div class="modal-body study-body">
+        
+        <div class="study-section">
+          <h4>1. Why does FTP use two separate connections (Out-of-band control)?</h4>
+          <p>
+            Unlike HTTP, FTP uses <strong>two distinct parallel TCP connections</strong>:
+          </p>
+          <ul>
+            <li><strong>Control Connection (Port 21)</strong>: Remains open for the entire duration of the user's session. It handles user authentication, directory navigation, file deletion, and transfer commands. Because control commands are sent over a separate stream, control is described as <em>"Out-of-band"</em>.</li>
+            <li><strong>Data Connection (Port 20 or Dynamic Ephemeral Port)</strong>: Created dynamically on-demand only when actual data (a directory listing or a file content stream) needs to be transferred, and terminated immediately after the transfer finishes.</li>
+          </ul>
+        </div>
+
+        <div class="study-section">
+          <h4>2. Active Mode (PORT) vs. Passive Mode (PASV)</h4>
+          <div class="table-responsive">
+            <table class="study-table">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Active Mode (PORT)</th>
+                  <th>Passive Mode (PASV)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Command Used</strong></td>
+                  <td><code>PORT h1,h2,h3,h4,p1,p2</code></td>
+                  <td><code>PASV</code> (Server replies with IP &amp; Port)</td>
+                </tr>
+                <tr>
+                  <td><strong>Who opens Data Connection?</strong></td>
+                  <td><strong>Server</strong> connects back to client's specified data port</td>
+                  <td><strong>Client</strong> connects to server's specified ephemeral port</td>
+                </tr>
+                <tr>
+                  <td><strong>Firewall / NAT Issue</strong></td>
+                  <td>Often blocked because incoming connections from server to client are dropped by client firewalls</td>
+                  <td>Firewall-friendly! Client initiates both connections outward.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="study-section">
+          <h4>3. Core FTP Commands Reference</h4>
+          <div class="grid-2">
+            <div class="code-box">
+              <strong>Control Commands:</strong><br>
+              <code>USER &lt;name&gt;</code> - Identify user<br>
+              <code>PASS &lt;password&gt;</code> - Send password<br>
+              <code>PWD</code> - Print working directory<br>
+              <code>CWD &lt;dir&gt;</code> - Change working directory<br>
+              <code>CDUP</code> - Change to parent directory<br>
+              <code>QUIT</code> - Terminate session
+            </div>
+            <div class="code-box">
+              <strong>Transfer Commands:</strong><br>
+              <code>LIST</code> - Directory contents (via Data connection)<br>
+              <code>RETR &lt;file&gt;</code> - Download file (Retrieve)<br>
+              <code>STOR &lt;file&gt;</code> - Upload file (Store)<br>
+              <code>DELE &lt;file&gt;</code> - Delete file<br>
+              <code>MKD &lt;dir&gt;</code> - Make directory<br>
+              <code>TYPE I / A</code> - Binary (Image) or ASCII mode
+            </div>
+          </div>
+        </div>
+
+        <div class="study-section">
+          <h4>4. RFC 959 Three-Digit Reply Codes Breakdown</h4>
+          <ul>
+            <li><code>1xx (Positive Preliminary)</code>: Action started, awaiting completion (e.g., <code>150 Opening data connection</code>).</li>
+            <li><code>2xx (Positive Completion)</code>: Action successfully completed (e.g., <code>200 OK</code>, <code>220 Ready</code>, <code>226 Transfer complete</code>, <code>230 Logged in</code>).</li>
+            <li><code>3xx (Positive Intermediate)</code>: Command accepted, but further info required (e.g., <code>331 Password required</code>).</li>
+            <li><code>4xx (Transient Negative)</code>: Temporary failure, try again (e.g., <code>425 Can't open data connection</code>).</li>
+            <li><code>5xx (Permanent Negative)</code>: Fatal error / command rejected (e.g., <code>500 Syntax error</code>, <code>530 Not logged in</code>, <code>550 File not found</code>).</li>
+          </ul>
+        </div>
+
+        <div class="study-section">
+          <h4>5. Common Viva-Voce Questions</h4>
+          <div class="faq-item">
+            <strong>Q: Can we run FTP on a single port?</strong>
+            <p>A: RFC 959 specifies separation of control and data. While modern protocols like SFTP (SSH File Transfer Protocol) run over a single port (Port 22), traditional FTP strictly requires separate control and data channels.</p>
+          </div>
+          <div class="faq-item">
+            <strong>Q: What is the difference between ASCII and Binary (Image) mode?</strong>
+            <p>A: In ASCII mode, newline characters (CR/LF) are translated between different operating systems (Windows vs Unix). In Binary (Image / TYPE I) mode, bytes are transferred exactly verbatim without modification, essential for images, executables, and compressed files.</p>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="btnCloseStudyBtn">Got it, close guide</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Scripts -->
+  <script src="js/app.js"></script>
+</body>
+</html>

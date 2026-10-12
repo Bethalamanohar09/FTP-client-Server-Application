@@ -1,0 +1,7 @@
+Client Experiment Log:
+Date: 2026-10-12
+Student Name: Manohar
+Subject: Computer Networks Laboratory
+Task: Testing FTP STOR upload command
+Status: Ready to transfer
+Bytes: 256 bytes

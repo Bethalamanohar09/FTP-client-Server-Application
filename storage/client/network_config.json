@@ -1,0 +1,11 @@
+{
+  "project": "CN Lab FTP Implementation",
+  "client_ip": "127.0.0.1",
+  "control_port": 21,
+  "data_port": 20,
+  "mode": "PASV",
+  "timeout_seconds": 30,
+  "supported_commands": [
+    "USER", "PASS", "LIST", "RETR", "STOR", "PWD", "CWD", "MKD", "DELE", "SIZE", "HELP", "QUIT"
+  ]
+}

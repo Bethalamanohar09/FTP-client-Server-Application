@@ -1,0 +1,7 @@
+Welcome to the CN Lab FTP Server!
+This file is hosted in the remote server storage root directory.
+
+File Transfer Protocol (RFC 959) Facts:
+1. Control Connection runs on TCP Port 21.
+2. Data Connection runs on TCP Port 20 (Active Mode) or Ephemeral Port (Passive Mode).
+3. Developed originally by Abhay Bhushan in 1971 (RFC 114).

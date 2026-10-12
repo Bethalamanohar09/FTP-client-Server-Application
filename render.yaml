@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: ftp-client-server-app
+    env: python
+    buildCommand: ""
+    startCommand: python app.py
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
